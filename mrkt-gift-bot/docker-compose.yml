@@ -1,0 +1,72 @@
+# ============================================================================
+#  MRKT Gift Monitor Bot — docker compose
+#
+#  Вариант 1 (MVP, SQLite):
+#      cp .env.example .env   # заполнить BOT_TOKEN
+#      docker compose up -d --build
+#
+#  Вариант 2 (PostgreSQL):
+#      docker compose --profile postgres up -d --build
+#      в .env: DATABASE_URL=postgresql+asyncpg://bot:bot@db:5432/mrkt_bot
+#      (для этого профиля в образ нужен asyncpg: pip install asyncpg —
+#       раскомментируйте строку в requirements.txt и пересоберите образ)
+#
+#  Диагностика без запуска бота:
+#      docker compose run --rm bot python main.py --check
+# ============================================================================
+
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mrkt-gift-bot:latest
+    container_name: mrkt-gift-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Перекрывает .env внутри контейнера: данные живут в volume.
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////app/data/bot.db}
+      DATA_DIR: /app/data
+      CACHE_DIR: /app/data/cache
+      TG_SESSION_WORKDIR: /app/sessions
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - bot-data:/app/data
+      - bot-sessions:/app/sessions
+    # Мониторингу нужно доделать цикл и корректно закрыть HTTP/БД-сессии.
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # depends_on не используется намеренно: сервис `db` включается только
+    # профилем postgres, а бот обязан стартовать и без него (SQLite).
+    # При включённом профиле используйте:
+    #   docker compose --profile postgres up -d
+    # и DATABASE_URL=postgresql+asyncpg://bot:bot@db:5432/mrkt_bot
+
+  db:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    container_name: mrkt-gift-bot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bot}
+      POSTGRES_DB: ${POSTGRES_DB:-mrkt_bot}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bot} -d ${POSTGRES_DB:-mrkt_bot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Порт наружу не публикуем: бот ходит в БД внутри сети compose.
+
+volumes:
+  bot-data:
+  bot-sessions:
+  postgres-data:

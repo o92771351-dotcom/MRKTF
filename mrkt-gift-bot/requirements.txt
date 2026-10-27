@@ -1,0 +1,21 @@
+# --- Ядро (обязательно) ---
+aiogram>=3.13,<4.0
+aiohttp>=3.9
+SQLAlchemy>=2.0.30
+greenlet>=3.0        # обязателен для asyncio-режима SQLAlchemy
+aiosqlite>=0.20
+pydantic>=2.7
+pydantic-settings>=2.3
+python-dotenv>=1.0
+Pillow>=10.3          # анализ цветов изображения + конвертация в JPEG для Telegram
+
+# --- Тесты ---
+pytest>=8.0
+pytest-asyncio>=0.23
+
+# --- Опционально: авто-получение токена MRKT через пользовательскую Telegram-сессию ---
+# Без этого пакета тоже всё работает: токен можно задать вручную в MRKT_TOKEN.
+# telethon>=1.36
+
+# --- PostgreSQL вместо SQLite (нужен для варианта с базой Render) ---
+asyncpg>=0.29

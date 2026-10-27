@@ -1,0 +1,28 @@
+# Секреты и локальная конфигурация
+.env
+.env.*
+!.env.example
+
+# Данные и кэш
+data/
+*.db
+*.db-journal
+*.sqlite3
+sessions/
+*.session
+*.session-journal
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

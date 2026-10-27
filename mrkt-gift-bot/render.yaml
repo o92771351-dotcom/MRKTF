@@ -1,0 +1,124 @@
+# ============================================================================
+#  Render Blueprint — деплой в один клик
+#
+#  Как использовать:
+#   1. Запушьте этот каталог в GitHub/GitLab.
+#   2. Render → «New +» → «Blueprint» → выберите репозиторий → Apply.
+#   3. После создания заполните значения секретов (помечены sync: false):
+#      BOT_TOKEN и MRKT_TOKEN — в Environment сервиса mrkt-gift-bot.
+#
+#  Вручную (без blueprint): New + → **Background Worker** (НЕ Web Service!)
+#  → Runtime: Docker → заполните те же переменные → Create.
+# ============================================================================
+
+services:
+  - type: worker            # бот работает через long polling: HTTP-порт не нужен
+    name: mrkt-gift-bot
+    runtime: docker
+    plan: starter           # Background Worker недоступен на free-плане
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    numInstances: 1         # ВАЖНО: один инстанс. Два бота с одним токеном
+                            # будут перехватывать обновления друг у друга.
+    healthCheckPath: ""     # HTTP нет — healthcheck не применяется
+    autoDeploy: true
+    disk:
+      name: bot-data
+      mountPath: /app/data  # SQLite, журнал отправок и кэш картинок
+      sizeGB: 1             # минимальный размер диска Render
+    envVars:
+      # --- секреты: задать руками в панели Render ---
+      - key: BOT_TOKEN
+        sync: false
+      - key: MRKT_TOKEN
+        sync: false
+
+      # --- источник данных ---
+      - key: SOURCE
+        value: mrkt
+      - key: CHANGES_API_ENABLED
+        value: "true"
+
+      # --- хранилище: SQLite на подключённом диске ---
+      # (для PostgreSQL создайте базу в Render и замените значение;
+      #  драйвер asyncpg уже есть в requirements.txt)
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:////app/data/bot.db
+      - key: DATA_DIR
+        value: /app/data
+      - key: CACHE_DIR
+        value: /app/data/cache
+
+      # --- вежливость к MRKT (площадка отвечает 429 при частых запросах) ---
+      - key: MRKT_REQUEST_DELAY
+        value: "2.0"
+      - key: MRKT_PAGE_SIZE
+        value: "20"
+      - key: MRKT_MAX_PAGES
+        value: "5"
+      - key: MRKT_MAX_COLLECTIONS
+        value: "12"
+      - key: MRKT_RETRY_BACKOFF_BASE
+        value: "2.0"
+      - key: MRKT_RETRY_BACKOFF_MAX
+        value: "15.0"
+
+      # --- доступ к боту: подставьте свои Telegram ID (узнать: @userinfobot) ---
+      - key: ALLOWED_USER_IDS
+        value: ""
+      - key: ADMIN_USER_IDS
+        value: ""
+
+      # --- мониторинг и уведомления ---
+      - key: DEFAULT_INTERVAL_MINUTES
+        value: "15"
+      - key: MIN_INTERVAL_MINUTES
+        value: "5"
+      - key: MAX_RESULTS_PER_RUN
+        value: "5"
+      - key: SEND_DELAY_SECONDS
+        value: "1.5"
+      - key: RESEND_PRICE_DROP_PERCENT
+        value: "5.0"
+      - key: RESEND_AFTER_HOURS
+        value: "24"
+
+      # --- оценка и ранжирование ---
+      - key: VALUE_MIN_COMPARABLES
+        value: "3"
+      - key: DEFAULT_MIN_RELEVANCE
+        value: "60"
+      - key: RANK_WEIGHT_MATCH
+        value: "0.25"
+      - key: RANK_WEIGHT_MONOCHROME
+        value: "0.25"
+      - key: RANK_WEIGHT_VALUE
+        value: "0.25"
+      - key: RANK_WEIGHT_CONFIDENCE
+        value: "0.15"
+      - key: RANK_WEIGHT_FRESHNESS
+        value: "0.10"
+
+      # --- монохром по умолчанию ---
+      - key: MONO_MODE_DEFAULT
+        value: gray
+      - key: MONO_MIN_SCORE
+        value: "60"
+      - key: MONO_MAX_SATURATION
+        value: "0.12"
+      - key: MONO_ALLOW_NAME_HEURISTIC
+        value: "true"
+
+      # --- прочее ---
+      - key: LOG_LEVEL
+        value: INFO
+      - key: IMAGE_ENABLED
+        value: "true"
+      - key: IMAGE_SIZE
+        value: "512"
+      # Публичного deep-link на лот MRKT не обнаружено. Как только выясните
+      # реальный формат (лот → «Поделиться» → скопировать ссылку), подставьте
+      # его сюда; работают плейсхолдеры {id} {collection} {model} {backdrop}
+      # {symbol} {number}.
+      - key: MRKT_LINK_TEMPLATE
+        value: https://t.me/mrkt/app
