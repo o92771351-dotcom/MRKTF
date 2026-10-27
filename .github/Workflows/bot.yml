@@ -1,0 +1,4 @@
+git init && git add -A && git commit -m bot && git
+branch -M main
+git remote add origin https://github.com/o92771351-dotcom/mrkt-gift-bot.git &&
+git push -u origin main
