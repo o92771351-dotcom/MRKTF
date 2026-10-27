@@ -1,0 +1,62 @@
+name: mrkt-bot
+
+on:
+  schedule:
+    - cron: "0 */5 * * *"
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+
+concurrency:
+  group: mrkt-bot
+  cancel-in-progress: false
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Probe data source
+        run: python main.py --check
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          SOURCE: mrkt
+          MRKT_TOKEN: ${{ secrets.MRKT_TOKEN }}
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
+
+      - name: Run bot
+        run: python main.py
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          MRKT_TOKEN: ${{ secrets.MRKT_TOKEN }}
+          SOURCE: mrkt
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
+          ALLOWED_USER_IDS: ${{ vars.ALLOWED_USER_IDS }}
+          ADMIN_USER_IDS: ${{ vars.ADMIN_USER_IDS }}
+          DATABASE_URL: sqlite+aiosqlite:///./data/bot.db
+          DATA_DIR: ./data
+          CACHE_DIR: ./data/cache
+          LOG_LEVEL: INFO
+          MRKT_REQUEST_DELAY: "2.0"
+          MRKT_MAX_PAGES: "5"
+          MRKT_MAX_COLLECTIONS: "12"
+          DEFAULT_INTERVAL_MINUTES: "15"
+          MIN_INTERVAL_MINUTES: "5"
+          RESEND_PRICE_DROP_PERCENT: "5.0"
+          RESEND_AFTER_HOURS: "24"
