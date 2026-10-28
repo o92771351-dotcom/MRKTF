@@ -18,6 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Bootstrap code from CODE_URL (optional)
+        if: ${{ vars.CODE_URL != '' }}
+        run: |
+          curl -sSL --fail "${CODE_URL}" -o /tmp/code.tar.gz
+          tar -xzf /tmp/code.tar.gz
+          ls -la
+        env:
+          CODE_URL: ${{ vars.CODE_URL }}
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
